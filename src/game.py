@@ -6,6 +6,7 @@ Note there are comments here, but for the full explanation,
 follow along in the tutorial.
 """
 
+# TODO creer juste la poule qui pond avec espace loeuf et le child qui se barre au bout de 10 secondes
 
 #Import Modules
 import os, pygame
@@ -96,7 +97,8 @@ class Chimp(pygame.sprite.Sprite):
 
     def _walk(self):
         "move the monkey across the screen, and turn at the ends"
-        newpos = self.rect.move((self.move, 0))
+        newpos = self.rect.move((self.move, 1))
+        print(self.move)
         if self.rect.left < self.area.left or \
             self.rect.right > self.area.right:
             self.move = -self.move
