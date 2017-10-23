@@ -6,7 +6,8 @@ Note there are comments here, but for the full explanation,
 follow along in the tutorial.
 """
 
-# TODO creer juste la poule qui pond avec espace loeuf et le child qui se barre au bout de 10 secondes
+# TODO creer juste la poule qui pond avec la touche espace loeuf et le child qui se barre au bout de 10 secondes
+# TODO creer les groupes comme dans aliens.py, creer le groupe des oeufs
 
 #Import Modules
 import os, pygame
@@ -50,6 +51,45 @@ def load_sound(name):
 
 
 #classes for our game objects
+class Chicken(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self) #call Sprite initializer
+        self.image, self.rect = load_image('chicken.png', -1)
+        self.lay = False
+        self.droite = self.image
+        self.gauche = pygame.transform.flip(self.image, 1, 0)
+        self.facing = self.droite
+        self.speed = 10
+
+    def update(self):
+        if self.lay:
+            self.rect.move_ip(5, 10)
+            
+    def move(self, direction):
+        # Déplacement vers la droite
+        if direction == 'droite':
+            self.image = self.droite
+            self.rect.move_ip(self.speed, 0)
+
+        # Déplacement vers la gauche
+        if direction == 'gauche':
+            self.image = self.gauche
+            self.rect.move_ip(-self.speed, 0)
+
+        # Déplacement vers le haut
+        if direction == 'haut':
+            self.rect.move_ip(0, -self.speed)
+
+        # Déplacement vers le bas
+        if direction == 'bas':
+            self.rect.move_ip(0, self.speed)
+
+class Egg(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self) #call Sprite initializer
+        self.image, self.rect = load_image('egg.png', -1)
+
+
 class Fist(pygame.sprite.Sprite):
     """moves a clenched fist on the screen, following the mouse"""
     def __init__(self):
@@ -157,7 +197,12 @@ def main():
     punch_sound = load_sound('punch.wav')
     chimp = Chimp()
     fist = Fist()
-    allsprites = pygame.sprite.RenderPlain((fist, chimp))
+    chicken = Chicken()
+
+    # Activation de l'appuie long sur les touches
+    pygame.key.set_repeat(400, 30)
+
+    allsprites = pygame.sprite.RenderPlain((fist, chimp, chicken))
 
 
 #Main Loop
@@ -179,6 +224,23 @@ def main():
                     whiff_sound.play() #miss
             elif event.type == MOUSEBUTTONUP:
                 fist.unpunch()
+
+            elif event.type == KEYDOWN:
+                if event.key == K_DOWN:
+                    print("DOWN")
+                    chicken.move("bas")
+                if event.key == K_LEFT:
+                    print("LEFT")
+                    chicken.move("gauche")
+                if event.key == K_RIGHT:
+                    print("RIGHT")
+                    chicken.move("droite")
+                if event.key == K_UP:
+                    print("UP")
+                    chicken.move("haut")
+
+                if event.key == K_SPACE:
+                    print("SPACE")
 
         allsprites.update()
 
