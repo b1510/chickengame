@@ -8,11 +8,13 @@ follow along in the tutorial.
 
 # TODO creer juste la poule qui pond avec la touche espace loeuf et le child qui se barre au bout de 10 secondes
 # TODO creer les groupes comme dans aliens.py, creer le groupe des oeufs
-
+# TODO creer les minichicken qui se barrent !!
+# TODO les sons
 #Import Modules
 import os, pygame
 from pygame.locals import *
 from pygame.compat import geterror
+from datetime import datetime, timedelta
 
 if not pygame.font:
     print('Warning, fonts disabled')
@@ -114,18 +116,22 @@ class Chicken(pygame.sprite.Sprite):
                     self.current_animation = 0
                     self.lay_on_going = False
 
+class MiniChicken(pygame.sprite.Sprite):
+    pass
+
 
 class Egg(pygame.sprite.Sprite):
     def __init__(self, chicken_pos):
         pygame.sprite.Sprite.__init__(self) #call Sprite initializer
         self.image, self.rect = load_image('egg.png', -1)
-        print(chicken_pos)
-        print(chicken_pos.x, chicken_pos.y)
-        print(chicken_pos.x + chicken_pos.width/2 - 5, chicken_pos.y + chicken_pos.height/2)
+        self.image_bk, self.rect_bk = load_image('broken_egg.png', -1)
         self.rect = self.rect.move(chicken_pos.x + chicken_pos.width/2 - 40, chicken_pos.y + chicken_pos.height/2)
 
+        self.time_start = datetime.now()
+
     def update(self):
-        pass
+        if self.time_start + timedelta(seconds=10) < datetime.now():
+            self.image = self.image_bk
         # self.rect.move_ip(5, 10)
 
 
@@ -210,7 +216,7 @@ def main():
        a loop until the function returns."""
     # Initialize Everything
     pygame.init()
-    screen = pygame.display.set_mode((600, 600))
+    screen = pygame.display.set_mode((800, 800))
     pygame.display.set_caption('Monkey Fever')
     pygame.mouse.set_visible(0)
 
