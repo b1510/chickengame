@@ -14,14 +14,16 @@ import os, pygame
 from pygame.locals import *
 from pygame.compat import geterror
 
-if not pygame.font: print ('Warning, fonts disabled')
-if not pygame.mixer: print ('Warning, sound disabled')
+if not pygame.font:
+    print('Warning, fonts disabled')
+if not pygame.mixer:
+    print('Warning, sound disabled')
 
 main_dir = os.path.split(os.path.abspath(__file__))[0]
 data_dir = os.path.join(main_dir, 'images')
 data_dir_sounds = os.path.join(main_dir, 'sounds')
 
-#functions to create our resources
+# functions to create our resources
 def load_image(name, colorkey=None):
     fullname = os.path.join(data_dir, name)
     try:
@@ -55,15 +57,17 @@ class Chicken(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self) #call Sprite initializer
         self.image, self.rect = load_image('chicken.png', -1)
-        self.lay = False
+        self.lay_on_going = False
         self.droite = self.image
         self.gauche = pygame.transform.flip(self.image, 1, 0)
         self.facing = self.droite
         self.speed = 10
+        self.step = 0
+        self.current_animation = 0
 
     def update(self):
-        if self.lay:
-            self.rect.move_ip(5, 10)
+        if self.lay_on_going:
+            self._lay_animation()
             
     def move(self, direction):
         # Déplacement vers la droite
@@ -84,10 +88,45 @@ class Chicken(pygame.sprite.Sprite):
         if direction == 'bas':
             self.rect.move_ip(0, self.speed)
 
+    def lay(self):
+        self.lay_on_going = True
+        return Egg(self.rect)
+
+    def _lay_animation(self):
+
+        if self.lay_on_going:
+            self.animate_speed = 20
+            if self.step == 0:
+                self.rect.move_ip(0, -self.animate_speed)
+                self.current_animation += 1
+                if self.current_animation > 5:
+                    self.step += 1
+            elif self.step == 1:
+                self.rect.move_ip(self.animate_speed, 0)
+                self.current_animation += 1
+                if self.current_animation > 10:
+                    self.step += 1
+            elif self.step == 2:
+                self.rect.move_ip(0, self.animate_speed)
+                self.current_animation += 1
+                if self.current_animation > 16:
+                    self.step = 0
+                    self.current_animation = 0
+                    self.lay_on_going = False
+
+
 class Egg(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, chicken_pos):
         pygame.sprite.Sprite.__init__(self) #call Sprite initializer
         self.image, self.rect = load_image('egg.png', -1)
+        print(chicken_pos)
+        print(chicken_pos.x, chicken_pos.y)
+        print(chicken_pos.x + chicken_pos.width/2 - 5, chicken_pos.y + chicken_pos.height/2)
+        self.rect = self.rect.move(chicken_pos.x + chicken_pos.width/2 - 40, chicken_pos.y + chicken_pos.height/2)
+
+    def update(self):
+        pass
+        # self.rect.move_ip(5, 10)
 
 
 class Fist(pygame.sprite.Sprite):
@@ -169,29 +208,29 @@ def main():
     """this function is called when the program starts.
        it initializes everything it needs, then runs in
        a loop until the function returns."""
-#Initialize Everything
+    # Initialize Everything
     pygame.init()
     screen = pygame.display.set_mode((600, 600))
     pygame.display.set_caption('Monkey Fever')
     pygame.mouse.set_visible(0)
 
-#Create The Backgound
+    # Create The Backgound
     background = pygame.Surface(screen.get_size())
     background = background.convert()
     background.fill((99, 219, 255))
 
-#Put Text On The Background, Centered
+    # Put Text On The Background, Centered
     if pygame.font:
         font = pygame.font.Font(None, 36)
         text = font.render("Mademoiselle Poule", 1, (10, 10, 10))
         textpos = text.get_rect(centerx=background.get_width()/2)
         background.blit(text, textpos)
 
-#Display The Background
+    # Display The Background
     screen.blit(background, (0, 0))
     pygame.display.flip()
 
-#Prepare Game Objects
+    # Prepare Game Objects
     clock = pygame.time.Clock()
     whiff_sound = load_sound('whiff.wav')
     punch_sound = load_sound('punch.wav')
@@ -199,18 +238,26 @@ def main():
     fist = Fist()
     chicken = Chicken()
 
+    # Initialize Game Groups
+    eggs = pygame.sprite.RenderPlain()
+    allsprites = pygame.sprite.RenderUpdates()
+
+    # assign default groups to each sprite class
+    Chicken.containers = allsprites
+    # Egg.containers = eggs, allsprites
+
     # Activation de l'appuie long sur les touches
     pygame.key.set_repeat(400, 30)
 
-    allsprites = pygame.sprite.RenderPlain((fist, chimp, chicken))
+    allsprites.add(chicken)
+    allsprites.add(eggs)
 
-
-#Main Loop
+    # Main Loop
     going = True
     while going:
         clock.tick(60)
 
-        #Handle Input Events
+        # Handle Input Events
         for event in pygame.event.get():
             if event.type == QUIT:
                 going = False
@@ -241,11 +288,14 @@ def main():
 
                 if event.key == K_SPACE:
                     print("SPACE")
+                    eggs.add(chicken.lay())
 
+        eggs.update()
         allsprites.update()
 
         #Draw Everything
         screen.blit(background, (0, 0))
+        eggs.draw(screen)
         allsprites.draw(screen)
         pygame.display.flip()
 
