@@ -8,8 +8,9 @@ follow along in the tutorial.
 
 # TODO creer juste la poule qui pond avec la touche espace loeuf et le child qui se barre au bout de 10 secondes
 # TODO creer les groupes comme dans aliens.py, creer le groupe des oeufs
-# TODO creer les minichicken qui se barrent !!
+# TODO creer les minichicken qui se barrent !! faire le groupe
 # TODO les sons
+# TODO le controle de la souris
 #Import Modules
 import os, pygame
 from pygame.locals import *
@@ -24,6 +25,8 @@ if not pygame.mixer:
 main_dir = os.path.split(os.path.abspath(__file__))[0]
 data_dir = os.path.join(main_dir, 'images')
 data_dir_sounds = os.path.join(main_dir, 'sounds')
+
+LAY_TIME = 1
 
 # functions to create our resources
 def load_image(name, colorkey=None):
@@ -66,6 +69,7 @@ class Chicken(pygame.sprite.Sprite):
         self.speed = 10
         self.step = 0
         self.current_animation = 0
+
 
     def update(self):
         if self.lay_on_going:
@@ -116,11 +120,17 @@ class Chicken(pygame.sprite.Sprite):
                     self.current_animation = 0
                     self.lay_on_going = False
 
-class MiniChicken(pygame.sprite.Sprite):
-    pass
+
+class MiniChicken(Chicken):
+
+    def __init__(self):
+        super().__init__()
+        w, h = self.image.get_size()
+        self.image = pygame.transform.scale(self.image, (int(w * 0.5), int(h * 0.5)))
 
 
 class Egg(pygame.sprite.Sprite):
+
     def __init__(self, chicken_pos):
         pygame.sprite.Sprite.__init__(self) #call Sprite initializer
         self.image, self.rect = load_image('egg.png', -1)
@@ -128,11 +138,66 @@ class Egg(pygame.sprite.Sprite):
         self.rect = self.rect.move(chicken_pos.x + chicken_pos.width/2 - 40, chicken_pos.y + chicken_pos.height/2)
 
         self.time_start = datetime.now()
+        self.step = 0
+        self.current_animation = 0
+        self.dizzy = 1
+        self.original = self.image_bk
+
+        self.spawn_on_going = False
+
+        self.nb_spin = 0
+        self.velocity = 1
 
     def update(self):
-        if self.time_start + timedelta(seconds=10) < datetime.now():
-            self.image = self.image_bk
-        # self.rect.move_ip(5, 10)
+        if self.time_start + timedelta(seconds=LAY_TIME) < datetime.now():
+            self.spawn()
+
+    def spawn(self):
+        self.spawn_on_going = True
+        self._spawn_animation()
+
+
+
+    def _spawn_animation(self):
+        if self.spawn_on_going:
+
+            # self.image = self.image_bk
+            # self.rect.move_ip(120, 120)
+
+
+
+            if self.step == 0:
+                self._spin()
+            elif self.step == 1:
+                self.spawn_on_going = False
+            #     self.image = self.image_bk
+            #     self.current_animation += 1
+            #     if self.current_animation > 3:
+            #         self.step += 1
+            # if self.step == 1:
+
+    def _spin(self):
+
+        "spin the monkey image"
+        self.rect.move_ip(0, -2 * self.velocity)
+        center = self.rect.center
+        if self.nb_spin >= 40:
+            self.step += 1
+            self.image = self.original
+        else:
+            rotate = pygame.transform.rotate
+            self.image = rotate(self.original, self.dizzy)
+
+            self.nb_spin += 1
+            self.rect.move_ip(12, 0)
+            self.image.get_rect().move_ip(12, 0)
+            if 10 <= self.nb_spin <= 30:
+                self.velocity = -1 * self.velocity
+                self.dizzy -= 2
+            else:
+                self.dizzy += 2
+        self.rect = self.image.get_rect(center=center)
+
 
 
 class Fist(pygame.sprite.Sprite):
