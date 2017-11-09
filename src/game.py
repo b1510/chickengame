@@ -12,7 +12,8 @@ follow along in the tutorial.
 # TODO les sons
 # TODO le controle de la souris
 #Import Modules
-import os, pygame
+import os
+import pygame
 from pygame.locals import *
 from pygame.compat import geterror
 from datetime import datetime, timedelta
@@ -26,7 +27,7 @@ main_dir = os.path.split(os.path.abspath(__file__))[0]
 data_dir = os.path.join(main_dir, 'images')
 data_dir_sounds = os.path.join(main_dir, 'sounds')
 
-LAY_TIME = 1
+LAY_TIME = 10
 
 # functions to create our resources
 def load_image(name, colorkey=None):
@@ -60,8 +61,9 @@ def load_sound(name):
 #classes for our game objects
 class Chicken(pygame.sprite.Sprite):
     def __init__(self):
-        pygame.sprite.Sprite.__init__(self) #call Sprite initializer
+        pygame.sprite.Sprite.__init__(self, self.containers) #call Sprite initializer
         self.image, self.rect = load_image('chicken.png', -1)
+
         self.lay_on_going = False
         self.droite = self.image
         self.gauche = pygame.transform.flip(self.image, 1, 0)
@@ -71,9 +73,16 @@ class Chicken(pygame.sprite.Sprite):
         self.current_animation = 0
 
 
+
+
     def update(self):
+
         if self.lay_on_going:
             self._lay_animation()
+            pygame.mouse.set_pos(self.rect.midtop)
+        else:
+            pos = pygame.mouse.get_pos()
+            self.rect.midtop = pos
             
     def move(self, direction):
         # Déplacement vers la droite
@@ -96,7 +105,7 @@ class Chicken(pygame.sprite.Sprite):
 
     def lay(self):
         self.lay_on_going = True
-        return Egg(self.rect)
+        Egg(self.rect)
 
     def _lay_animation(self):
 
@@ -121,18 +130,36 @@ class Chicken(pygame.sprite.Sprite):
                     self.lay_on_going = False
 
 
-class MiniChicken(Chicken):
+class MiniChicken(pygame.sprite.Sprite):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, chicken_pos):
+        pygame.sprite.Sprite.__init__(self, self.containers) #call Sprite initializer
+        self.image, self.rect = load_image('chicken.png', -1)
         w, h = self.image.get_size()
-        self.image = pygame.transform.scale(self.image, (int(w * 0.5), int(h * 0.5)))
+        self.image = pygame.transform.flip(self.image, 1, 0)
+        self.image = pygame.transform.scale(self.image, (int(w * 0.4), int(h * 0.4)))
+        print(self.rect)
+        self.rect = self.rect.move(chicken_pos.x + chicken_pos.width/2 - 40, chicken_pos.y + chicken_pos.height/2)
+        self.minchiken_animation_on_going = True
+        self.current_animation = 0
+
+        screen = pygame.display.get_surface()
+        self.area = screen.get_rect()
+
+    def update(self):
+
+        if self.minchiken_animation_on_going:
+            self.rect.move_ip(-5, 0)
+            if self.rect.left < self.area.left or self.rect.right > self.area.right:
+                self.kill()
+                self.minchiken_animation_on_going = False
+
 
 
 class Egg(pygame.sprite.Sprite):
 
     def __init__(self, chicken_pos):
-        pygame.sprite.Sprite.__init__(self) #call Sprite initializer
+        pygame.sprite.Sprite.__init__(self, self.containers) #call Sprite initializer
         self.image, self.rect = load_image('egg.png', -1)
         self.image_bk, self.rect_bk = load_image('broken_egg.png', -1)
         self.rect = self.rect.move(chicken_pos.x + chicken_pos.width/2 - 40, chicken_pos.y + chicken_pos.height/2)
@@ -148,37 +175,31 @@ class Egg(pygame.sprite.Sprite):
         self.nb_spin = 0
         self.velocity = 1
 
+        self.minchicken_group = pygame.sprite.RenderPlain()
+        self.screen = pygame.display.get_surface()
+
     def update(self):
         if self.time_start + timedelta(seconds=LAY_TIME) < datetime.now():
             self.spawn()
+
 
     def spawn(self):
         self.spawn_on_going = True
         self._spawn_animation()
 
-
-
     def _spawn_animation(self):
         if self.spawn_on_going:
-
-            # self.image = self.image_bk
-            # self.rect.move_ip(120, 120)
-
-
 
             if self.step == 0:
                 self._spin()
             elif self.step == 1:
+                MiniChicken(self.rect)
+                self.kill()
                 self.spawn_on_going = False
-            #     self.image = self.image_bk
-            #     self.current_animation += 1
-            #     if self.current_animation > 3:
-            #         self.step += 1
-            # if self.step == 1:
+
 
     def _spin(self):
 
-        "spin the monkey image"
         self.rect.move_ip(0, -2 * self.velocity)
         center = self.rect.center
         if self.nb_spin >= 40:
@@ -197,82 +218,6 @@ class Egg(pygame.sprite.Sprite):
             else:
                 self.dizzy += 2
         self.rect = self.image.get_rect(center=center)
-
-
-
-class Fist(pygame.sprite.Sprite):
-    """moves a clenched fist on the screen, following the mouse"""
-    def __init__(self):
-        pygame.sprite.Sprite.__init__(self) #call Sprite initializer
-        self.image, self.rect = load_image('fist.bmp', -1)
-        self.punching = 0
-
-    def update(self):
-        "move the fist based on the mouse position"
-        pos = pygame.mouse.get_pos()
-        self.rect.midtop = pos
-        if self.punching:
-            self.rect.move_ip(5, 10)
-
-    def punch(self, target):
-        "returns true if the fist collides with the target"
-        if not self.punching:
-            self.punching = 1
-            hitbox = self.rect.inflate(-5, -5)
-            return hitbox.colliderect(target.rect)
-
-    def unpunch(self):
-        "called to pull the fist back"
-        self.punching = 0
-
-
-class Chimp(pygame.sprite.Sprite):
-    """moves a monkey critter across the screen. it can spin the
-       monkey when it is punched."""
-    def __init__(self):
-        pygame.sprite.Sprite.__init__(self) #call Sprite intializer
-        self.image, self.rect = load_image('chimp.bmp', -1)
-        screen = pygame.display.get_surface()
-        self.area = screen.get_rect()
-        self.rect.topleft = 10, 10
-        self.move = 9
-        self.dizzy = 0
-
-    def update(self):
-        "walk or spin, depending on the monkeys state"
-        if self.dizzy:
-            self._spin()
-        else:
-            self._walk()
-
-    def _walk(self):
-        "move the monkey across the screen, and turn at the ends"
-        newpos = self.rect.move((self.move, 1))
-        print(self.move)
-        if self.rect.left < self.area.left or \
-            self.rect.right > self.area.right:
-            self.move = -self.move
-            newpos = self.rect.move((self.move, 0))
-            self.image = pygame.transform.flip(self.image, 1, 0)
-        self.rect = newpos
-
-    def _spin(self):
-        "spin the monkey image"
-        center = self.rect.center
-        self.dizzy = self.dizzy + 12
-        if self.dizzy >= 360:
-            self.dizzy = 0
-            self.image = self.original
-        else:
-            rotate = pygame.transform.rotate
-            self.image = rotate(self.original, self.dizzy)
-        self.rect = self.image.get_rect(center=center)
-
-    def punched(self):
-        "this will cause the monkey to start spinning"
-        if not self.dizzy:
-            self.dizzy = 1
-            self.original = self.image
 
 
 def main():
@@ -305,23 +250,24 @@ def main():
     clock = pygame.time.Clock()
     whiff_sound = load_sound('whiff.wav')
     punch_sound = load_sound('punch.wav')
-    chimp = Chimp()
-    fist = Fist()
-    chicken = Chicken()
+
+    screen.blit(background, (0,0))
+    pygame.display.flip()
 
     # Initialize Game Groups
     eggs = pygame.sprite.RenderPlain()
+    mini_chicken_group = pygame.sprite.Group()
     allsprites = pygame.sprite.RenderUpdates()
 
-    # assign default groups to each sprite class
+    #assign default groups to each sprite class
+    MiniChicken.containers = mini_chicken_group, allsprites
+    Egg.containers = eggs, allsprites
     Chicken.containers = allsprites
-    # Egg.containers = eggs, allsprites
+
+    chicken = Chicken()
 
     # Activation de l'appuie long sur les touches
     pygame.key.set_repeat(400, 30)
-
-    allsprites.add(chicken)
-    allsprites.add(eggs)
 
     # Main Loop
     going = True
@@ -335,13 +281,9 @@ def main():
             elif event.type == KEYDOWN and event.key == K_ESCAPE:
                 going = False
             elif event.type == MOUSEBUTTONDOWN:
-                if fist.punch(chimp):
-                    punch_sound.play() #punch
-                    chimp.punched()
-                else:
-                    whiff_sound.play() #miss
+                pass
             elif event.type == MOUSEBUTTONUP:
-                fist.unpunch()
+                pass
 
             elif event.type == KEYDOWN:
                 if event.key == K_DOWN:
@@ -359,16 +301,17 @@ def main():
 
                 if event.key == K_SPACE:
                     print("SPACE")
-                    eggs.add(chicken.lay())
+                    chicken.lay()
+                    # eggs.add(egg)
+                    # mini_chicken_group.add(mc)
 
-        eggs.update()
+        # clear/erase the last drawn sprites
+        allsprites.clear(screen, background)
         allsprites.update()
 
-        #Draw Everything
-        screen.blit(background, (0, 0))
-        eggs.draw(screen)
-        allsprites.draw(screen)
-        pygame.display.flip()
+        #draw the scene
+        dirty = allsprites.draw(screen)
+        pygame.display.update(dirty)
 
     pygame.quit()
 
