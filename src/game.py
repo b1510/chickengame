@@ -6,17 +6,16 @@ Note there are comments here, but for the full explanation,
 follow along in the tutorial.
 """
 
-# TODO creer juste la poule qui pond avec la touche espace loeuf et le child qui se barre au bout de 10 secondes
-# TODO creer les groupes comme dans aliens.py, creer le groupe des oeufs
-# TODO creer les minichicken qui se barrent !! faire le groupe
 # TODO les sons
 # TODO le controle de la souris
+# TODO minichicken, bec coupé
 #Import Modules
 import os
 import pygame
 from pygame.locals import *
 from pygame.compat import geterror
 from datetime import datetime, timedelta
+from random import randint
 
 if not pygame.font:
     print('Warning, fonts disabled')
@@ -27,7 +26,7 @@ main_dir = os.path.split(os.path.abspath(__file__))[0]
 data_dir = os.path.join(main_dir, 'images')
 data_dir_sounds = os.path.join(main_dir, 'sounds')
 
-LAY_TIME = 10
+LAY_TIME = 1
 
 # functions to create our resources
 def load_image(name, colorkey=None):
@@ -53,7 +52,7 @@ def load_sound(name):
     try:
         sound = pygame.mixer.Sound(fullname)
     except pygame.error:
-        print ('Cannot load sound: %s' % fullname)
+        print('Cannot load sound: %s' % fullname)
         raise SystemExit(str(geterror()))
     return sound
 
@@ -71,18 +70,22 @@ class Chicken(pygame.sprite.Sprite):
         self.speed = 10
         self.step = 0
         self.current_animation = 0
+        self.cro_prout_sound = load_sound("croa_prout.wav")
 
-
-
+        screen = pygame.display.get_surface()
+        self.area = screen.get_rect()
 
     def update(self):
 
         if self.lay_on_going:
             self._lay_animation()
-            pygame.mouse.set_pos(self.rect.midtop)
+            print("------")
+            # print(self.rect.x, self.rect.y)
+            # print(randint(0, self.area.right), randint(0, self.area.bottom))
+            # pygame.mouse.set_pos(self.rect.midtop)
         else:
             pos = pygame.mouse.get_pos()
-            self.rect.midtop = pos
+            # self.rect.midtop = pos
             
     def move(self, direction):
         # Déplacement vers la droite
@@ -105,6 +108,7 @@ class Chicken(pygame.sprite.Sprite):
 
     def lay(self):
         self.lay_on_going = True
+        self.cro_prout_sound.play()
         Egg(self.rect)
 
     def _lay_animation(self):
@@ -128,7 +132,8 @@ class Chicken(pygame.sprite.Sprite):
                     self.step = 0
                     self.current_animation = 0
                     self.lay_on_going = False
-
+                    # new random position
+                    self.rect.bottomright = randint(0, self.area.right), randint(0, self.area.bottom)
 
 class MiniChicken(pygame.sprite.Sprite):
 
@@ -138,7 +143,7 @@ class MiniChicken(pygame.sprite.Sprite):
         w, h = self.image.get_size()
         self.image = pygame.transform.flip(self.image, 1, 0)
         self.image = pygame.transform.scale(self.image, (int(w * 0.4), int(h * 0.4)))
-        print(self.rect)
+
         self.rect = self.rect.move(chicken_pos.x + chicken_pos.width/2 - 40, chicken_pos.y + chicken_pos.height/2)
         self.minchiken_animation_on_going = True
         self.current_animation = 0
@@ -149,7 +154,7 @@ class MiniChicken(pygame.sprite.Sprite):
     def update(self):
 
         if self.minchiken_animation_on_going:
-            self.rect.move_ip(-5, 0)
+            self.rect.move_ip(-4, 0)
             if self.rect.left < self.area.left or self.rect.right > self.area.right:
                 self.kill()
                 self.minchiken_animation_on_going = False
@@ -171,6 +176,7 @@ class Egg(pygame.sprite.Sprite):
         self.original = self.image_bk
 
         self.spawn_on_going = False
+        self.minichicken_pop = False
 
         self.nb_spin = 0
         self.velocity = 1
@@ -178,10 +184,12 @@ class Egg(pygame.sprite.Sprite):
         self.minchicken_group = pygame.sprite.RenderPlain()
         self.screen = pygame.display.get_surface()
 
+        self.spawn_sound = load_sound("spawn.wav")
+
     def update(self):
+
         if self.time_start + timedelta(seconds=LAY_TIME) < datetime.now():
             self.spawn()
-
 
     def spawn(self):
         self.spawn_on_going = True
@@ -193,10 +201,12 @@ class Egg(pygame.sprite.Sprite):
             if self.step == 0:
                 self._spin()
             elif self.step == 1:
-                MiniChicken(self.rect)
+                if not self.minichicken_pop:
+                    MiniChicken(self.rect)
+                    self.spawn_sound.play()
+                    self.minichicken_pop = True
                 self.kill()
                 self.spawn_on_going = False
-
 
     def _spin(self):
 
@@ -220,39 +230,24 @@ class Egg(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=center)
 
 
+
 def main():
     """this function is called when the program starts.
        it initializes everything it needs, then runs in
        a loop until the function returns."""
     # Initialize Everything
     pygame.init()
-    screen = pygame.display.set_mode((800, 800))
     pygame.display.set_caption('Monkey Fever')
     pygame.mouse.set_visible(0)
+    screen = pygame.display.set_mode((800, 800), HWSURFACE | DOUBLEBUF | RESIZABLE)
 
-    # Create The Backgound
-    background = pygame.Surface(screen.get_size())
-    background = background.convert()
-    background.fill((99, 219, 255))
-
-    # Put Text On The Background, Centered
-    if pygame.font:
-        font = pygame.font.Font(None, 36)
-        text = font.render("Mademoiselle Poule", 1, (10, 10, 10))
-        textpos = text.get_rect(centerx=background.get_width()/2)
-        background.blit(text, textpos)
-
-    # Display The Background
-    screen.blit(background, (0, 0))
-    pygame.display.flip()
+    background = draw_background(screen)
 
     # Prepare Game Objects
     clock = pygame.time.Clock()
-    whiff_sound = load_sound('whiff.wav')
-    punch_sound = load_sound('punch.wav')
+    intro = load_sound("zic_peppa.wav")
 
-    screen.blit(background, (0,0))
-    pygame.display.flip()
+    intro.play()
 
     # Initialize Game Groups
     eggs = pygame.sprite.RenderPlain()
@@ -278,10 +273,15 @@ def main():
         for event in pygame.event.get():
             if event.type == QUIT:
                 going = False
+            elif event.type == VIDEORESIZE:
+                screen = pygame.display.set_mode(event.dict['size'], HWSURFACE | DOUBLEBUF | RESIZABLE)
+                background = draw_background(screen)
+                chicken.kill()
+                chicken = Chicken()
             elif event.type == KEYDOWN and event.key == K_ESCAPE:
                 going = False
             elif event.type == MOUSEBUTTONDOWN:
-                pass
+                chicken.lay()
             elif event.type == MOUSEBUTTONUP:
                 pass
 
@@ -302,8 +302,6 @@ def main():
                 if event.key == K_SPACE:
                     print("SPACE")
                     chicken.lay()
-                    # eggs.add(egg)
-                    # mini_chicken_group.add(mc)
 
         # clear/erase the last drawn sprites
         allsprites.clear(screen, background)
@@ -314,6 +312,26 @@ def main():
         pygame.display.update(dirty)
 
     pygame.quit()
+
+
+def draw_background(screen):
+    # Create The Backgound
+    background = pygame.Surface(screen.get_size())
+    background = background.convert()
+    background.fill((99, 219, 255))
+    # Put Text On The Background, Centered
+    if pygame.font:
+        font = pygame.font.Font("fonts/Peppa_Pig1.ttf", 45)
+        text = font.render("Mademoiselle Poule", 1, (10, 10, 10))
+        textpos = text.get_rect(centerx=background.get_width() / 2)
+        textpos.y = 20
+        background.blit(text, textpos)
+
+    # Display The Background
+    screen.blit(background, (0, 0))
+    pygame.display.flip()
+    return background
+
 
 #Game Over
 
