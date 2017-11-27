@@ -1,21 +1,13 @@
 #!/usr/bin/env python
-"""
-This simple example is used for the line-by-line tutorial
-that comes with pygame. It is based on a 'popular' web banner.
-Note there are comments here, but for the full explanation,
-follow along in the tutorial.
-"""
-
-# TODO les sons
-# TODO le controle de la souris
-# TODO minichicken, bec coupé
-#Import Modules
 import os
 import pygame
 from pygame.locals import *
 from pygame.compat import geterror
 from datetime import datetime, timedelta
 from random import randint
+
+# TODO animation
+# TODO minichicken, bec coupé
 
 if not pygame.font:
     print('Warning, fonts disabled')
@@ -26,7 +18,9 @@ main_dir = os.path.split(os.path.abspath(__file__))[0]
 data_dir = os.path.join(main_dir, 'images')
 data_dir_sounds = os.path.join(main_dir, 'sounds')
 
-LAY_TIME = 1
+LAY_TIME = 10
+SCORE = 0
+
 
 # functions to create our resources
 def load_image(name, colorkey=None):
@@ -43,6 +37,7 @@ def load_image(name, colorkey=None):
         image.set_colorkey(colorkey, RLEACCEL)
     return image, image.get_rect()
 
+
 def load_sound(name):
     class NoneSound:
         def play(self): pass
@@ -57,17 +52,19 @@ def load_sound(name):
     return sound
 
 
-#classes for our game objects
 class Chicken(pygame.sprite.Sprite):
     def __init__(self):
-        pygame.sprite.Sprite.__init__(self, self.containers) #call Sprite initializer
-        self.image, self.rect = load_image('chicken.png', -1)
+        pygame.sprite.Sprite.__init__(self, self.containers)  # call Sprite initializer
+        self.original, self.rect = load_image('chicken.png', -1)
+        self.image2, self.rect2 = load_image('chicken_2.png', -1)
+
+        self.image = self.original
 
         self.lay_on_going = False
         self.droite = self.image
         self.gauche = pygame.transform.flip(self.image, 1, 0)
         self.facing = self.droite
-        self.speed = 10
+        self.speed = 13
         self.step = 0
         self.current_animation = 0
         self.cro_prout_sound = load_sound("croa_prout.wav")
@@ -79,30 +76,20 @@ class Chicken(pygame.sprite.Sprite):
 
         if self.lay_on_going:
             self._lay_animation()
-            print("------")
-            # print(self.rect.x, self.rect.y)
-            # print(randint(0, self.area.right), randint(0, self.area.bottom))
             # pygame.mouse.set_pos(self.rect.midtop)
         else:
             pos = pygame.mouse.get_pos()
             # self.rect.midtop = pos
             
     def move(self, direction):
-        # Déplacement vers la droite
         if direction == 'droite':
             self.image = self.droite
             self.rect.move_ip(self.speed, 0)
-
-        # Déplacement vers la gauche
         if direction == 'gauche':
             self.image = self.gauche
             self.rect.move_ip(-self.speed, 0)
-
-        # Déplacement vers le haut
         if direction == 'haut':
             self.rect.move_ip(0, -self.speed)
-
-        # Déplacement vers le bas
         if direction == 'bas':
             self.rect.move_ip(0, self.speed)
 
@@ -135,10 +122,11 @@ class Chicken(pygame.sprite.Sprite):
                     # new random position
                     self.rect.bottomright = randint(0, self.area.right), randint(0, self.area.bottom)
 
+
 class MiniChicken(pygame.sprite.Sprite):
 
     def __init__(self, chicken_pos):
-        pygame.sprite.Sprite.__init__(self, self.containers) #call Sprite initializer
+        pygame.sprite.Sprite.__init__(self, self.containers)  # call Sprite initializer
         self.image, self.rect = load_image('chicken.png', -1)
         w, h = self.image.get_size()
         self.image = pygame.transform.flip(self.image, 1, 0)
@@ -146,7 +134,6 @@ class MiniChicken(pygame.sprite.Sprite):
 
         self.rect = self.rect.move(chicken_pos.x + chicken_pos.width/2 - 40, chicken_pos.y + chicken_pos.height/2)
         self.minchiken_animation_on_going = True
-        self.current_animation = 0
 
         screen = pygame.display.get_surface()
         self.area = screen.get_rect()
@@ -160,18 +147,16 @@ class MiniChicken(pygame.sprite.Sprite):
                 self.minchiken_animation_on_going = False
 
 
-
 class Egg(pygame.sprite.Sprite):
 
     def __init__(self, chicken_pos):
-        pygame.sprite.Sprite.__init__(self, self.containers) #call Sprite initializer
+        pygame.sprite.Sprite.__init__(self, self.containers)  # call Sprite initializer
         self.image, self.rect = load_image('egg.png', -1)
         self.image_bk, self.rect_bk = load_image('broken_egg.png', -1)
         self.rect = self.rect.move(chicken_pos.x + chicken_pos.width/2 - 40, chicken_pos.y + chicken_pos.height/2)
 
         self.time_start = datetime.now()
         self.step = 0
-        self.current_animation = 0
         self.dizzy = 1
         self.original = self.image_bk
 
@@ -197,7 +182,6 @@ class Egg(pygame.sprite.Sprite):
 
     def _spawn_animation(self):
         if self.spawn_on_going:
-
             if self.step == 0:
                 self._spin()
             elif self.step == 1:
@@ -229,7 +213,30 @@ class Egg(pygame.sprite.Sprite):
                 self.dizzy += 2
         self.rect = self.image.get_rect(center=center)
 
+class Score(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.font = pygame.font.Font("fonts/Peppa_Pig1.ttf", 30)
+        self.color = (10, 10, 10)
+        self.lastscore = -1
+        self.update()
+        self.redraw()
 
+    def update(self):
+        if SCORE != self.lastscore:
+            self.lastscore = SCORE
+            msg = "Score: %d" % SCORE
+            self.image = self.font.render(msg, 1, self.color)
+
+    def redraw(self):
+        screen = pygame.display.get_surface()
+        self.rect = self.image.get_rect().move(screen.get_width() - 150, 30)
+
+
+animate_chicken = pygame.USEREVENT + 1
+animate_chicken2 = pygame.USEREVENT + 2
+pygame.time.set_timer(animate_chicken, 1000)
+pygame.time.set_timer(animate_chicken2, 2500)
 
 def main():
     """this function is called when the program starts.
@@ -237,7 +244,7 @@ def main():
        a loop until the function returns."""
     # Initialize Everything
     pygame.init()
-    pygame.display.set_caption('Monkey Fever')
+    pygame.display.set_caption('Mademoiselle Poule')
     pygame.mouse.set_visible(0)
     screen = pygame.display.set_mode((800, 800), HWSURFACE | DOUBLEBUF | RESIZABLE)
 
@@ -254,13 +261,16 @@ def main():
     mini_chicken_group = pygame.sprite.Group()
     allsprites = pygame.sprite.RenderUpdates()
 
-    #assign default groups to each sprite class
+    # assign default groups to each sprite class
     MiniChicken.containers = mini_chicken_group, allsprites
     Egg.containers = eggs, allsprites
     Chicken.containers = allsprites
+    Score.containers = allsprites
 
     chicken = Chicken()
-
+    global SCORE
+    display_score = Score()
+    allsprites.add(display_score)
     # Activation de l'appuie long sur les touches
     pygame.key.set_repeat(400, 30)
 
@@ -274,10 +284,12 @@ def main():
             if event.type == QUIT:
                 going = False
             elif event.type == VIDEORESIZE:
+                # if screen is resize
                 screen = pygame.display.set_mode(event.dict['size'], HWSURFACE | DOUBLEBUF | RESIZABLE)
                 background = draw_background(screen)
                 chicken.kill()
                 chicken = Chicken()
+                display_score.redraw()
             elif event.type == KEYDOWN and event.key == K_ESCAPE:
                 going = False
             elif event.type == MOUSEBUTTONDOWN:
@@ -287,27 +299,27 @@ def main():
 
             elif event.type == KEYDOWN:
                 if event.key == K_DOWN:
-                    print("DOWN")
                     chicken.move("bas")
                 if event.key == K_LEFT:
-                    print("LEFT")
                     chicken.move("gauche")
                 if event.key == K_RIGHT:
-                    print("RIGHT")
                     chicken.move("droite")
                 if event.key == K_UP:
-                    print("UP")
                     chicken.move("haut")
-
                 if event.key == K_SPACE:
-                    print("SPACE")
                     chicken.lay()
+                    SCORE += 1
+            # elif event.type == animate_chicken:
+            #     chicken.image = chicken.image2
+            # elif event.type == animate_chicken2:
+            #     chicken.image = chicken.original
+
 
         # clear/erase the last drawn sprites
         allsprites.clear(screen, background)
         allsprites.update()
 
-        #draw the scene
+        # draw the scene
         dirty = allsprites.draw(screen)
         pygame.display.update(dirty)
 
@@ -333,9 +345,8 @@ def draw_background(screen):
     return background
 
 
-#Game Over
+# Game Over
 
-
-#this calls the 'main' function when this script is executed
-if __name__ == '__main__':
-    main()
+main()
+# if __name__ == '__main__':
+#     main()
